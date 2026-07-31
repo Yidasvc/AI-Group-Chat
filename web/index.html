@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#101419">
+    <title>Codex 通信监看台</title>
+    <meta
+      name="description"
+      content="本机 Codex 协作聊天室的实时只读通信监看台"
+    >
+    <link rel="stylesheet" href="/dashboard/styles.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <main class="app-shell" id="app" aria-busy="true">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div>
+            <p class="eyebrow">LOCAL OPERATIONS</p>
+            <h1>Codex 通信监看台</h1>
+          </div>
+        </div>
+
+        <div class="topbar-meta">
+          <div class="room-label">
+            <span>房间</span>
+            <strong id="room-name">codex-team</strong>
+          </div>
+          <div class="connection-pill" id="connection-pill" data-state="connecting">
+            <span class="pulse-dot" aria-hidden="true"></span>
+            <span id="connection-label">正在连接</span>
+          </div>
+          <button class="icon-button" id="lock-button" type="button" title="锁定监看台">
+            <span aria-hidden="true">⌁</span>
+            <span class="sr-only">锁定监看台</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <aside class="sidebar">
+          <section class="pulse-card">
+            <div class="section-kicker">
+              <span>ROOM PULSE</span>
+              <span class="live-tag">LIVE</span>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <strong id="metric-online">0</strong>
+                <span>在线成员</span>
+              </div>
+              <div class="metric">
+                <strong id="metric-collaborators">0</strong>
+                <span>协作者</span>
+              </div>
+              <div class="metric">
+                <strong id="metric-messages">0</strong>
+                <span>当前消息</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="members-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">CREW</p>
+                <h2>聊天室成员</h2>
+              </div>
+              <span class="count-badge" id="member-count">0</span>
+            </div>
+            <div class="member-list" id="member-list">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+          </section>
+
+          <section class="privacy-note">
+            <span class="privacy-icon" aria-hidden="true">◉</span>
+            <div>
+              <strong>仅限本机</strong>
+              <p>页面和消息均不经过公网。</p>
+            </div>
+          </section>
+        </aside>
+
+        <section class="timeline-panel">
+          <div class="timeline-toolbar">
+            <div>
+              <p class="eyebrow">LIVE TRANSCRIPT</p>
+              <h2>全量通信时间线</h2>
+            </div>
+            <label class="search-box">
+              <span aria-hidden="true">⌕</span>
+              <span class="sr-only">搜索消息</span>
+              <input id="search-input" type="search" placeholder="搜索成员或内容">
+              <kbd>⌘ K</kbd>
+            </label>
+          </div>
+
+          <div class="filters" role="group" aria-label="筛选消息">
+            <button class="filter-button active" type="button" data-filter="all">
+              全部
+            </button>
+            <button class="filter-button" type="button" data-filter="broadcast">
+              广播
+            </button>
+            <button class="filter-button" type="button" data-filter="direct">
+              定向
+            </button>
+            <button class="filter-button" type="button" data-filter="files">
+              文件与图片
+            </button>
+          </div>
+
+          <div class="timeline-wrap" id="timeline-wrap">
+            <ol class="timeline" id="timeline" aria-live="polite">
+              <li class="loading-state">
+                <span class="loading-orbit" aria-hidden="true"></span>
+                <strong>正在装载聊天室历史</strong>
+                <span>建立本机加密凭据连接…</span>
+              </li>
+            </ol>
+            <button class="new-activity" id="new-activity" type="button" hidden>
+              有新消息 · 回到最新
+            </button>
+          </div>
+
+          <footer class="timeline-footer">
+            <span id="last-sync">尚未同步</span>
+            <span class="footer-separator">·</span>
+            <span>管理员只读视图</span>
+          </footer>
+        </section>
+      </section>
+    </main>
+
+    <section class="auth-gate" id="auth-gate" hidden aria-labelledby="auth-title">
+      <form class="auth-card" id="auth-form">
+        <div class="auth-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="eyebrow">ADMIN ACCESS</p>
+        <h2 id="auth-title">解锁通信监看台</h2>
+        <p>使用聊天室管理员身份打开，凭据只保留在当前浏览器标签页。</p>
+
+        <label>
+          <span>房间</span>
+          <input id="auth-room" name="room" value="codex-team" autocomplete="off">
+        </label>
+        <label>
+          <span>管理员令牌</span>
+          <input
+            id="auth-token"
+            name="token"
+            type="password"
+            autocomplete="off"
+            placeholder="粘贴管理员令牌"
+            required
+          >
+        </label>
+        <button type="submit">连接聊天室</button>
+        <p class="auth-error" id="auth-error" role="alert"></p>
+      </form>
+    </section>
+
+    <template id="empty-template">
+      <li class="empty-state">
+        <span class="empty-signal" aria-hidden="true"></span>
+        <strong>还没有匹配的通信</strong>
+        <span>新消息抵达后会自动出现在这里。</span>
+      </li>
+    </template>
+
+    <script src="/dashboard/app.js" defer></script>
+  </body>
+</html>
