@@ -143,14 +143,14 @@ class ChatStore:
 
     def bootstrap(self, room_id, display_name, admin_name):
         if not IDENTIFIER_RE.match(room_id):
-            raise ValueError("room_id 只能包含字母、数字、点、下划线和连字符，长度不超过 64")
+            raise ValueError("room_id may contain only letters, numbers, dots, underscores, and hyphens, up to 64 characters")
         invite = token()
         admin_token = token()
         admin_id = compact_id("admin")
         created = utc_now()
         with self.connection() as conn:
             if conn.execute("SELECT 1 FROM rooms WHERE id = ?", (room_id,)).fetchone():
-                raise Conflict("聊天室已存在")
+                raise Conflict("Chat room already exists")
             conn.execute(
                 "INSERT INTO rooms(id, display_name, invite_hash, created_at) VALUES (?, ?, ?, ?)",
                 (room_id, display_name, token_hash(invite), created),
@@ -168,7 +168,7 @@ class ChatStore:
                 None,
                 None,
                 "system",
-                "聊天室已创建，管理员为 {}".format(admin_name),
+                "Chat room created; administrator is {}".format(admin_name),
                 {"action": "room_created", "admin_member_id": admin_id},
             )
         self.notify()
@@ -187,7 +187,7 @@ class ChatStore:
 
     def join(self, room_id, name, invite):
         if not name or len(name) > 100:
-            raise ValueError("成员名称不能为空且最多 100 个字符")
+            raise ValueError("Member name is required and may contain at most 100 characters")
         member_token = token()
         member_id = compact_id("collab")
         joined = utc_now()
@@ -196,7 +196,7 @@ class ChatStore:
                 "SELECT * FROM rooms WHERE id = ? AND active = 1", (room_id,)
             ).fetchone()
             if not room or not secrets.compare_digest(room["invite_hash"], token_hash(invite)):
-                raise Unauthorized("邀请令牌无效")
+                raise Unauthorized("Invalid invite token")
             conn.execute(
                 """
                 INSERT INTO members(id, room_id, name, role, token_hash, joined_at, last_seen_at)
@@ -210,7 +210,7 @@ class ChatStore:
                 None,
                 None,
                 "system",
-                "{} 已加入聊天室".format(name),
+                "{} joined the chat room".format(name),
                 {"action": "member_joined", "member_id": member_id, "name": name},
             )
         self.notify()
@@ -225,7 +225,7 @@ class ChatStore:
 
     def authenticate(self, room_id, bearer):
         if not bearer:
-            raise Unauthorized("缺少 Bearer 令牌")
+            raise Unauthorized("Bearer token is required")
         hashed = token_hash(bearer)
         with self.connection() as conn:
             member = conn.execute(
@@ -236,7 +236,7 @@ class ChatStore:
                 (room_id, hashed),
             ).fetchone()
             if not member:
-                raise Unauthorized("成员令牌无效或已停用")
+                raise Unauthorized("Member token is invalid or deactivated")
             conn.execute(
                 "UPDATE members SET last_seen_at = ? WHERE id = ?",
                 (utc_now(), member["id"]),
@@ -268,9 +268,9 @@ class ChatStore:
             (room_id, value),
         ).fetchall()
         if not rows:
-            raise NotFound("找不到收件人：{}".format(value))
+            raise NotFound("Recipient not found: {}".format(value))
         if len(rows) > 1:
-            raise Conflict("成员名称重复，请使用 member_id")
+            raise Conflict("Member name is ambiguous; use member_id")
         return rows[0]["id"]
 
     def create_message(self, member, payload):
@@ -278,9 +278,9 @@ class ChatStore:
         text = payload.get("text") or ""
         recipient = payload.get("to")
         if kind not in ("text", "file", "image", "path"):
-            raise ValueError("kind 必须是 text、file、image 或 path")
+            raise ValueError("kind must be text, file, image, or path")
         if len(text) > MAX_TEXT_CHARS:
-            raise ValueError("消息文本过长")
+            raise ValueError("Message text is too long")
 
         decoded = None
         filename = None
@@ -293,28 +293,28 @@ class ChatStore:
             encoded = payload.get("content_base64")
             filename = safe_filename(payload.get("filename"))
             if not encoded:
-                raise ValueError("文件消息缺少 content_base64")
+                raise ValueError("File message is missing content_base64")
             try:
                 decoded = base64.b64decode(encoded, validate=True)
             except Exception:
-                raise ValueError("content_base64 不是有效的 Base64")
+                raise ValueError("content_base64 is not valid Base64")
             if len(decoded) > MAX_FILE_BYTES:
-                raise PayloadTooLarge("单个文件不能超过 50 MiB")
+                raise PayloadTooLarge("A single file cannot exceed 50 MiB")
             mime_type = payload.get("mime_type") or mimetypes.guess_type(filename)[0] or "application/octet-stream"
             digest = hashlib.sha256(decoded).hexdigest()
         elif kind == "path":
             raw_path = payload.get("path")
             if not raw_path:
-                raise ValueError("路径消息缺少 path")
+                raise ValueError("Path message is missing path")
             path = Path(raw_path).expanduser()
             if not path.is_absolute():
-                raise ValueError("同机共享必须使用绝对路径")
+                raise ValueError("Local sharing requires an absolute path")
             try:
                 path = path.resolve(strict=True)
             except FileNotFoundError:
-                raise NotFound("共享路径不存在")
+                raise NotFound("Shared path does not exist")
             if not path.is_file():
-                raise ValueError("当前只允许共享文件路径")
+                raise ValueError("Only file paths may be shared")
             stat = path.stat()
             path_value = str(path)
             metadata = {
@@ -325,7 +325,7 @@ class ChatStore:
                 "local_only": True,
             }
         elif not text:
-            raise ValueError("文本消息不能为空")
+            raise ValueError("Text message cannot be empty")
 
         file_id = None
         storage_path = None
@@ -422,7 +422,7 @@ class ChatStore:
                 (room_id, event_id),
             ).fetchone()
             if not row:
-                raise NotFound("消息不存在")
+                raise NotFound("Message not found")
             return self._event_dict(row)
 
     def _event_dict(self, row):
@@ -490,7 +490,7 @@ class ChatStore:
 
     def timeline(self, member, after, wait_seconds):
         if member["role"] != "admin":
-            raise Forbidden("只有管理员可以查看完整时间线")
+            raise Forbidden("Only administrators can view the full timeline")
         deadline = time.monotonic() + wait_seconds
         cursor = after
         while True:
@@ -545,16 +545,16 @@ class ChatStore:
 
     def deactivate(self, admin, member_id):
         if admin["role"] != "admin":
-            raise Forbidden("只有管理员可以停用成员")
+            raise Forbidden("Only administrators can deactivate members")
         if member_id == admin["id"]:
-            raise ValueError("不能停用当前管理员")
+            raise ValueError("The current administrator cannot be deactivated")
         with self.connection() as conn:
             target = conn.execute(
                 "SELECT * FROM members WHERE room_id = ? AND id = ? AND active = 1",
                 (admin["room_id"], member_id),
             ).fetchone()
             if not target:
-                raise NotFound("成员不存在或已停用")
+                raise NotFound("Member does not exist or is already deactivated")
             conn.execute("UPDATE members SET active = 0 WHERE id = ?", (member_id,))
             event_id = self._insert_event(
                 conn,
@@ -562,7 +562,7 @@ class ChatStore:
                 None,
                 None,
                 "system",
-                "{} 已被管理员停用".format(target["name"]),
+                "{} was deactivated by the administrator".format(target["name"]),
                 {"action": "member_deactivated", "member_id": member_id},
             )
         self.notify()
@@ -570,7 +570,7 @@ class ChatStore:
 
     def rotate_invite(self, admin):
         if admin["role"] != "admin":
-            raise Forbidden("只有管理员可以轮换邀请令牌")
+            raise Forbidden("Only administrators can rotate the invite token")
         invite = token()
         with self.connection() as conn:
             conn.execute(
@@ -586,7 +586,7 @@ class ChatStore:
                 (room_id, file_id),
             ).fetchone()
             if not row:
-                raise NotFound("文件不存在")
+                raise NotFound("File not found")
             return dict(row)
 
     @staticmethod
@@ -640,20 +640,20 @@ class ChatHandler(BaseHTTPRequestHandler):
     def _json_body(self):
         raw_length = self.headers.get("Content-Length")
         if raw_length is None:
-            raise ValueError("缺少 Content-Length")
+            raise ValueError("Content-Length is required")
         try:
             length = int(raw_length)
         except ValueError:
-            raise ValueError("Content-Length 无效")
+            raise ValueError("Invalid Content-Length")
         if length < 0 or length > MAX_BODY_BYTES:
-            raise PayloadTooLarge("请求体过大")
+            raise PayloadTooLarge("Request body is too large")
         raw = self.rfile.read(length)
         try:
             payload = json.loads(raw.decode("utf-8"))
         except Exception:
-            raise ValueError("请求体必须是 UTF-8 JSON")
+            raise ValueError("Request body must be UTF-8 JSON")
         if not isinstance(payload, dict):
-            raise ValueError("JSON 请求体必须是对象")
+            raise ValueError("JSON request body must be an object")
         return payload
 
     def _bearer(self):
@@ -673,7 +673,7 @@ class ChatHandler(BaseHTTPRequestHandler):
 
     def _send_static(self, path, content_type):
         if not path.is_file():
-            raise NotFound("页面资源不存在")
+            raise NotFound("Page resource not found")
         body = path.read_bytes()
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", content_type)
@@ -700,7 +700,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             status = HTTPStatus.INTERNAL_SERVER_ERROR
         self._send_json(
             status,
-            {"error": exc.__class__.__name__, "message": str(exc) or "服务器错误"},
+            {"error": exc.__class__.__name__, "message": str(exc) or "Server error"},
         )
 
     def _route(self):
@@ -761,14 +761,14 @@ class ChatHandler(BaseHTTPRequestHandler):
                     after = int(query.get("after", ["0"])[0])
                     wait = float(query.get("wait", ["0"])[0])
                     if after < 0 or wait < 0 or wait > 55:
-                        raise ValueError("after 必须非负，wait 必须在 0 到 55 秒之间")
+                        raise ValueError("after must be non-negative and wait must be between 0 and 55 seconds")
                     self._send_json(HTTPStatus.OK, self.store.poll(member, after, wait))
                     return
                 if len(parts) == 4 and parts[3] == "timeline":
                     after = int(query.get("after", ["0"])[0])
                     wait = float(query.get("wait", ["0"])[0])
                     if after < 0 or wait < 0 or wait > 55:
-                        raise ValueError("after 必须非负，wait 必须在 0 到 55 秒之间")
+                        raise ValueError("after must be non-negative and wait must be between 0 and 55 seconds")
                     self._send_json(
                         HTTPStatus.OK, self.store.timeline(member, after, wait)
                     )
@@ -776,7 +776,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                 if len(parts) == 4 and parts[3] == "history":
                     limit = int(query.get("limit", ["50"])[0])
                     if limit < 1 or limit > 500:
-                        raise ValueError("limit 必须在 1 到 500 之间")
+                        raise ValueError("limit must be between 1 and 500")
                     self._send_json(
                         HTTPStatus.OK, {"events": self.store.history(member, limit)}
                     )
@@ -785,7 +785,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                     info = self.store.file_info(room_id, parts[4])
                     path = Path(info["storage_path"])
                     if not path.is_file():
-                        raise NotFound("文件记录存在，但磁盘文件缺失")
+                        raise NotFound("File record exists, but the disk file is missing")
                     self.send_response(HTTPStatus.OK)
                     self.send_header("Content-Type", info["mime_type"])
                     self.send_header("Content-Length", str(info["size"]))
@@ -799,7 +799,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                     with open(path, "rb") as handle:
                         shutil.copyfileobj(handle, self.wfile)
                     return
-            raise NotFound("接口不存在")
+            raise NotFound("Endpoint not found")
         except Exception as exc:
             self._error(exc)
 
@@ -812,7 +812,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                 result = self.store.bootstrap(
                     room_id,
                     payload.get("display_name") or room_id,
-                    payload.get("admin_name") or "管理员",
+                    payload.get("admin_name") or "Admin",
                 )
                 self._send_json(HTTPStatus.CREATED, result)
                 return
@@ -838,7 +838,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                     result = self.store.rotate_invite(member)
                     self._send_json(HTTPStatus.OK, result)
                     return
-            raise NotFound("接口不存在")
+            raise NotFound("Endpoint not found")
         except Exception as exc:
             self._error(exc)
 
@@ -874,7 +874,7 @@ def parse_args():
 def main():
     args = parse_args()
     if args.host not in ("127.0.0.1", "::1", "localhost"):
-        raise SystemExit("安全限制：此服务只能绑定本机回环地址")
+        raise SystemExit("Safety restriction: this service may bind only to the local loopback address")
     store = ChatStore(args.data_dir)
     server = ChatServer((args.host, args.port), ChatHandler, store, args.web_dir)
 

@@ -99,7 +99,7 @@
 
   function showAuth(message = "") {
     state.stopped = true;
-    setConnection("offline", "需要授权");
+    setConnection("offline", "Authorization required");
     el.authRoom.value = state.room;
     el.authToken.value = "";
     el.authError.textContent = message;
@@ -116,7 +116,7 @@
 
   function formatClock(value) {
     try {
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -129,7 +129,7 @@
 
   function formatDateTime(value) {
     try {
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat("en-US", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -142,7 +142,7 @@
   }
 
   function formatBytes(size) {
-    if (!Number.isFinite(Number(size))) return "未知大小";
+    if (!Number.isFinite(Number(size))) return "Unknown size";
     const units = ["B", "KiB", "MiB", "GiB"];
     let value = Number(size);
     let unit = 0;
@@ -168,7 +168,7 @@
     const ordered = [...state.members].sort((a, b) => {
       if (a.active !== b.active) return b.active - a.active;
       if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
-      return a.name.localeCompare(b.name, "zh-CN");
+      return a.name.localeCompare(b.name, "en");
     });
     el.memberList.replaceChildren();
 
@@ -190,15 +190,15 @@
       const detail = document.createElement("span");
       detail.textContent =
         member.role === "admin"
-          ? "管理员 · 全量权限"
+          ? "Administrator · Full access"
           : member.active
             ? member.member_id
-            : "已停用";
+            : "Disabled";
       name.append(strong, detail);
 
       const status = document.createElement("span");
       status.className = `member-status ${online ? "online" : ""}`;
-      status.textContent = member.active ? (online ? "在线" : "空闲") : "停用";
+      status.textContent = member.active ? (online ? "Online" : "Idle") : "Disabled";
 
       row.append(avatar, name, status);
       el.memberList.append(row);
@@ -214,7 +214,7 @@
   }
 
   function visibleEvents() {
-    const query = state.search.trim().toLocaleLowerCase("zh-CN");
+    const query = state.search.trim().toLocaleLowerCase("en");
     return [...state.events.values()]
       .sort((a, b) => a.id - b.id)
       .filter((event) => {
@@ -236,7 +236,7 @@
         ]
           .filter(Boolean)
           .join(" ")
-          .toLocaleLowerCase("zh-CN");
+          .toLocaleLowerCase("en");
         return haystack.includes(query);
       });
   }
@@ -245,7 +245,7 @@
     const item = document.createElement("li");
     item.className = "system-item";
     const text = document.createElement("span");
-    text.textContent = event.text || "系统事件";
+    text.textContent = event.text || "System event";
     const time = document.createElement("time");
     time.dateTime = event.created_at;
     time.textContent = formatClock(event.created_at);
@@ -261,7 +261,7 @@
     if (event.kind === "image" && metadata.file_id) {
       const image = document.createElement("img");
       image.className = "attachment-image";
-      image.alt = metadata.filename || "聊天图片";
+      image.alt = metadata.filename || "Chat image";
       image.loading = "lazy";
       container.append(image);
       loadImage(metadata.file_id, image);
@@ -275,17 +275,17 @@
       symbol.className = "file-symbol";
       symbol.textContent = "PATH";
       const code = document.createElement("code");
-      code.textContent = metadata.path || "路径不可用";
+      code.textContent = metadata.path || "Path unavailable";
       code.title = metadata.path || "";
       const copy = document.createElement("button");
       copy.className = "file-action";
       copy.type = "button";
-      copy.textContent = "复制路径";
+      copy.textContent = "Copy path";
       copy.addEventListener("click", async () => {
         await navigator.clipboard.writeText(metadata.path || "");
-        copy.textContent = "已复制";
+        copy.textContent = "Copied";
         setTimeout(() => {
-          copy.textContent = "复制路径";
+          copy.textContent = "Copy path";
         }, 1200);
       });
       row.append(symbol, code, copy);
@@ -296,7 +296,7 @@
       const copy = document.createElement("div");
       copy.className = "file-copy";
       const title = document.createElement("strong");
-      title.textContent = metadata.filename || "未命名文件";
+      title.textContent = metadata.filename || "Unnamed file";
       const detail = document.createElement("span");
       detail.textContent = `${formatBytes(metadata.size)} · ${
         metadata.mime_type || "application/octet-stream"
@@ -305,7 +305,7 @@
       const download = document.createElement("button");
       download.className = "file-action";
       download.type = "button";
-      download.textContent = "下载";
+      download.textContent = "Download";
       download.addEventListener("click", () =>
         downloadFile(metadata.file_id, metadata.filename, download),
       );
@@ -332,15 +332,15 @@
     const meta = document.createElement("div");
     meta.className = "message-meta";
     const name = document.createElement("strong");
-    name.textContent = event.sender?.name || "未知成员";
+    name.textContent = event.sender?.name || "Unknown member";
     const role = document.createElement("span");
     role.className = `role-label ${senderRole === "admin" ? "admin" : ""}`;
     role.textContent = senderRole === "admin" ? "ADMIN" : "COLLAB";
     const route = document.createElement("span");
     route.className = "route-label";
     route.textContent = event.recipient
-      ? `定向 → ${event.recipient.name}`
-      : "全员广播";
+      ? `Directed → ${event.recipient.name}`
+      : "Broadcast";
     const time = document.createElement("time");
     time.className = "message-time";
     time.dateTime = event.created_at;
@@ -432,14 +432,14 @@
       state.objectUrls.set(fileId, url);
       image.src = url;
     } catch (_error) {
-      image.alt = `${image.alt}（加载失败）`;
+      image.alt = `${image.alt} (load failed)`;
     }
   }
 
   async function downloadFile(fileId, filename, button) {
     if (!fileId) return;
     const oldText = button.textContent;
-    button.textContent = "准备中";
+    button.textContent = "Preparing";
     button.disabled = true;
     try {
       const response = await api(roomPath(`/files/${encodeURIComponent(fileId)}`));
@@ -452,9 +452,9 @@
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      button.textContent = "已下载";
+      button.textContent = "Downloaded";
     } catch (_error) {
-      button.textContent = "失败";
+      button.textContent = "Failed";
     } finally {
       button.disabled = false;
       setTimeout(() => {
@@ -479,21 +479,21 @@
   async function timelineLoop() {
     while (!state.stopped) {
       try {
-        setConnection("connected", "实时连接");
+        setConnection("connected", "Live");
         const response = await api(
           roomPath(`/timeline?after=${state.cursor}&wait=30`),
         );
         const body = await response.json();
         addEvents(body.events || []);
         state.cursor = Math.max(state.cursor, body.cursor || 0);
-        el.lastSync.textContent = `最后同步 ${formatClock(new Date().toISOString())}`;
+        el.lastSync.textContent = `Last sync ${formatClock(new Date().toISOString())}`;
       } catch (error) {
         if (state.stopped) return;
         if (error.status === 401 || error.status === 403) {
           showAuth(error.message);
           return;
         }
-        setConnection("offline", "正在重连");
+        setConnection("offline", "Reconnecting");
         await new Promise((resolve) => setTimeout(resolve, 1800));
       }
     }
@@ -517,18 +517,18 @@
     state.members = [];
     el.app.setAttribute("aria-busy", "true");
     el.roomName.textContent = state.room;
-    setConnection("connecting", "正在连接");
+    setConnection("connecting", "Connecting");
     hideAuth();
     try {
       await Promise.all([loadHistory(), loadRoster()]);
       el.app.setAttribute("aria-busy", "false");
-      setConnection("connected", "实时连接");
-      el.lastSync.textContent = `最后同步 ${formatClock(new Date().toISOString())}`;
+      setConnection("connected", "Live");
+      el.lastSync.textContent = `Last sync ${formatClock(new Date().toISOString())}`;
       timelineLoop();
       rosterLoop();
     } catch (error) {
       el.app.setAttribute("aria-busy", "false");
-      showAuth(error.message || "无法连接聊天室");
+      showAuth(error.message || "Unable to connect to chat");
     }
   }
 

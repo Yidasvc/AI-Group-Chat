@@ -44,9 +44,9 @@ def load_config_unlocked():
         with open(CONFIG_PATH, "r", encoding="utf-8") as handle:
             data = json.load(handle)
     except (OSError, ValueError) as exc:
-        raise ClientError("无法读取配置 {}: {}".format(CONFIG_PATH, exc))
+        raise ClientError("Unable to read config {}: {}".format(CONFIG_PATH, exc))
     if not isinstance(data, dict) or not isinstance(data.get("identities"), dict):
-        raise ClientError("配置文件格式无效：{}".format(CONFIG_PATH))
+        raise ClientError("Invalid config file format: {}".format(CONFIG_PATH))
     return data
 
 
@@ -76,7 +76,7 @@ def update_cursor(alias, cursor):
         data = load_config_unlocked()
         identity = data["identities"].get(alias)
         if not identity:
-            raise ClientError("找不到本地身份别名：{}".format(alias))
+            raise ClientError("Local identity alias not found: {}".format(alias))
         identity["cursor"] = max(int(identity.get("cursor", 0)), int(cursor))
         save_config_unlocked(data)
 
@@ -86,7 +86,7 @@ def get_identity(alias):
         identity = load_config_unlocked()["identities"].get(alias)
     if not identity:
         raise ClientError(
-            "找不到本地身份别名 {!r}；请先执行 bootstrap 或 join".format(alias)
+            "Local identity alias {!r} not found; run bootstrap or join first".format(alias)
         )
     return identity
 
@@ -113,9 +113,9 @@ def request(server, method, path, payload=None, bearer=None, raw=False, timeout=
             detail = json.loads(body_text).get("message", body_text)
         except ValueError:
             detail = body_text
-        raise ClientError("服务返回 HTTP {}：{}".format(exc.code, detail))
+        raise ClientError("Server returned HTTP {}: {}".format(exc.code, detail))
     except urllib.error.URLError as exc:
-        raise ClientError("无法连接聊天室服务 {}：{}".format(server, exc.reason))
+        raise ClientError("Unable to connect to chat server {}: {}".format(server, exc.reason))
 
 
 def room_path(identity, suffix):
@@ -164,7 +164,7 @@ def cmd_bootstrap(args):
             "admin_member_id": admin["member_id"],
             "invite_token": result["invite_token"],
             "server": args.server,
-            "note": "请妥善保存 invite_token；协作者加入时需要它。",
+            "note": "Store invite_token securely; collaborators need it to join.",
         }
     )
 
@@ -217,14 +217,14 @@ def cmd_send(args):
     text = args.message or ""
     selected = sum(bool(value) for value in (args.file, args.path))
     if selected > 1:
-        raise ClientError("--file 与 --path 不能同时使用")
+        raise ClientError("--file and --path cannot be used together")
     payload = {"text": text, "to": args.to}
     if args.file:
         path = Path(args.file).expanduser().resolve()
         if not path.is_file():
-            raise ClientError("上传文件不存在或不是普通文件：{}".format(path))
+            raise ClientError("Upload file does not exist or is not a regular file: {}".format(path))
         if path.stat().st_size > 50 * 1024 * 1024:
-            raise ClientError("单个文件不能超过 50 MiB")
+            raise ClientError("A single file cannot exceed 50 MiB")
         with open(path, "rb") as handle:
             content = base64.b64encode(handle.read()).decode("ascii")
         mime_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
@@ -241,7 +241,7 @@ def cmd_send(args):
         payload.update({"kind": "path", "path": str(path)})
     else:
         if not text:
-            raise ClientError("请提供消息文本，或使用 --file/--path")
+            raise ClientError("Provide message text or use --file/--path")
         payload["kind"] = "text"
     result = auth_request(identity, "POST", "/messages", payload)
     print_json(result)
@@ -275,7 +275,7 @@ def cmd_fetch(args):
             filename = args.file_id
     output = Path(filename).expanduser().resolve()
     if output.exists() and not args.force:
-        raise ClientError("输出文件已存在；使用 --force 覆盖：{}".format(output))
+        raise ClientError("Output file already exists; use --force to overwrite: {}".format(output))
     output.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=output.name + ".", dir=str(output.parent))
     try:
@@ -315,14 +315,14 @@ def dashboard_url(identity):
 def cmd_dashboard(args):
     identity = get_identity(args.alias)
     if identity.get("role") != "admin":
-        raise ClientError("完整聊天监看台仅允许管理员打开")
+        raise ClientError("The full chat dashboard can only be opened by an administrator")
     url = dashboard_url(identity)
     if args.print_url:
         print(url)
         return
     opened = webbrowser.open(url, new=2)
     if not opened:
-        raise ClientError("系统未能打开浏览器；请使用 --print-url 获取地址")
+        raise ClientError("The system could not open a browser; use --print-url to get the address")
     print_json(
         {
             "opened": True,
@@ -335,19 +335,19 @@ def cmd_dashboard(args):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="cgchat",
-        description="Codex 本机群组聊天室客户端。默认广播，--to 可定向发送。",
+        description="Local Codex group chat client. Messages broadcast by default; use --to for direct delivery.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    command = sub.add_parser("bootstrap", help="创建聊天室并保存管理员身份")
+    command = sub.add_parser("bootstrap", help="Create a chat room and save the administrator identity")
     command.add_argument("--room", default="codex-team")
     command.add_argument("--display-name")
-    command.add_argument("--admin-name", default="管理员")
+    command.add_argument("--admin-name", default="Admin")
     command.add_argument("--as", dest="alias", default="team-admin")
     command.add_argument("--server", default=DEFAULT_SERVER)
     command.set_defaults(func=cmd_bootstrap)
 
-    command = sub.add_parser("join", help="用邀请令牌加入为协作者")
+    command = sub.add_parser("join", help="Join as a collaborator with an invite token")
     command.add_argument("--room", required=True)
     command.add_argument("--invite", required=True)
     command.add_argument("--name", required=True)
@@ -355,59 +355,59 @@ def build_parser():
     command.add_argument("--server", default=DEFAULT_SERVER)
     command.set_defaults(func=cmd_join)
 
-    command = sub.add_parser("identities", help="列出本机已保存身份（不显示密钥）")
+    command = sub.add_parser("identities", help="List saved local identities (tokens are hidden)")
     command.set_defaults(func=cmd_identities)
 
-    command = sub.add_parser("who", help="列出聊天室成员")
+    command = sub.add_parser("who", help="List chat room members")
     command.add_argument("--as", dest="alias", required=True)
     command.set_defaults(func=cmd_who)
 
-    command = sub.add_parser("send", help="发送广播或定向消息/文件")
+    command = sub.add_parser("send", help="Send a broadcast or direct message/file")
     command.add_argument("--as", dest="alias", required=True)
-    command.add_argument("--to", help="收件人的 member_id 或唯一名称；省略则广播")
-    command.add_argument("--file", help="上传并发送文件或图片（最多 50 MiB）")
-    command.add_argument("--path", help="分享本机文件绝对路径，不复制文件")
-    command.add_argument("message", nargs="?", help="消息正文或文件说明")
+    command.add_argument("--to", help="Recipient member_id or unique name; omit to broadcast")
+    command.add_argument("--file", help="Upload and send a file or image (up to 50 MiB)")
+    command.add_argument("--path", help="Share an absolute local file path without copying it")
+    command.add_argument("message", nargs="?", help="Message text or file description")
     command.set_defaults(func=cmd_send)
 
-    command = sub.add_parser("listen", help="长轮询新通知并推进本地游标")
+    command = sub.add_parser("listen", help="Long-poll for notifications and advance the local cursor")
     command.add_argument("--as", dest="alias", required=True)
     command.add_argument("--wait", type=int, default=50, choices=range(0, 56), metavar="0..55")
-    command.add_argument("--after", type=int, help="覆盖本地游标")
+    command.add_argument("--after", type=int, help="Override the local cursor")
     command.add_argument("--no-advance", action="store_true")
     command.set_defaults(func=cmd_listen)
 
-    command = sub.add_parser("history", help="读取可见历史；管理员可见全量")
+    command = sub.add_parser("history", help="Read visible history; administrators see all events")
     command.add_argument("--as", dest="alias", required=True)
     command.add_argument("--limit", type=int, default=50, choices=range(1, 501))
     command.set_defaults(func=cmd_history)
 
-    command = sub.add_parser("fetch", help="下载上传型文件")
+    command = sub.add_parser("fetch", help="Download an uploaded file")
     command.add_argument("--as", dest="alias", required=True)
     command.add_argument("file_id")
     command.add_argument("--output")
     command.add_argument("--force", action="store_true")
     command.set_defaults(func=cmd_fetch)
 
-    command = sub.add_parser("kick", help="管理员停用协作者")
+    command = sub.add_parser("kick", help="Administrator deactivates a collaborator")
     command.add_argument("--as", dest="alias", required=True)
     command.add_argument("member_id")
     command.set_defaults(func=cmd_kick)
 
-    command = sub.add_parser("rotate-invite", help="管理员轮换邀请令牌")
+    command = sub.add_parser("rotate-invite", help="Administrator rotates the invite token")
     command.add_argument("--as", dest="alias", required=True)
     command.set_defaults(func=cmd_rotate_invite)
 
-    command = sub.add_parser("doctor", help="检查服务健康状态")
+    command = sub.add_parser("doctor", help="Check service health")
     command.add_argument("--server", default=DEFAULT_SERVER)
     command.set_defaults(func=cmd_doctor)
 
-    command = sub.add_parser("dashboard", help="用管理员身份打开实时聊天监看台")
+    command = sub.add_parser("dashboard", help="Open the live chat dashboard as administrator")
     command.add_argument("--as", dest="alias", default="team-admin")
     command.add_argument(
         "--print-url",
         action="store_true",
-        help="输出带临时页面凭据的地址而不自动打开",
+        help="Print a URL with temporary page credentials without opening it",
     )
     command.set_defaults(func=cmd_dashboard)
     return parser
@@ -422,7 +422,7 @@ def main():
         print("cgchat: {}".format(exc), file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("cgchat: 已取消", file=sys.stderr)
+        print("cgchat: cancelled", file=sys.stderr)
         return 130
     return 0
 

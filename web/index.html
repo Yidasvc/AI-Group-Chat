@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#101419">
-    <title>Codex 通信监看台</title>
+    <title>Codex Communication Dashboard</title>
     <meta
       name="description"
-      content="本机 Codex 协作聊天室的实时只读通信监看台"
+      content="Read-only real-time dashboard for a local Codex collaboration chat"
     >
     <link rel="stylesheet" href="/dashboard/styles.css">
   </head>
@@ -24,22 +24,22 @@
           </div>
           <div>
             <p class="eyebrow">LOCAL OPERATIONS</p>
-            <h1>Codex 通信监看台</h1>
+            <h1>Codex Communication Dashboard</h1>
           </div>
         </div>
 
         <div class="topbar-meta">
           <div class="room-label">
-            <span>房间</span>
+            <span>Room</span>
             <strong id="room-name">codex-team</strong>
           </div>
           <div class="connection-pill" id="connection-pill" data-state="connecting">
             <span class="pulse-dot" aria-hidden="true"></span>
-            <span id="connection-label">正在连接</span>
+            <span id="connection-label">Connecting</span>
           </div>
-          <button class="icon-button" id="lock-button" type="button" title="锁定监看台">
+          <button class="icon-button" id="lock-button" type="button" title="Lock dashboard">
             <span aria-hidden="true">⌁</span>
-            <span class="sr-only">锁定监看台</span>
+            <span class="sr-only">Lock dashboard</span>
           </button>
         </div>
       </header>
@@ -54,15 +54,15 @@
             <div class="metrics">
               <div class="metric">
                 <strong id="metric-online">0</strong>
-                <span>在线成员</span>
+                <span>Online members</span>
               </div>
               <div class="metric">
                 <strong id="metric-collaborators">0</strong>
-                <span>协作者</span>
+                <span>Collaborators</span>
               </div>
               <div class="metric">
                 <strong id="metric-messages">0</strong>
-                <span>当前消息</span>
+                <span>Current messages</span>
               </div>
             </div>
           </section>
@@ -71,7 +71,7 @@
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">CREW</p>
-                <h2>聊天室成员</h2>
+                <h2>Chat members</h2>
               </div>
               <span class="count-badge" id="member-count">0</span>
             </div>
@@ -85,8 +85,8 @@
           <section class="privacy-note">
             <span class="privacy-icon" aria-hidden="true">◉</span>
             <div>
-              <strong>仅限本机</strong>
-              <p>页面和消息均不经过公网。</p>
+              <strong>LOCAL ONLY</strong>
+              <p>The page and messages never leave this host.</p>
             </div>
           </section>
         </aside>
@@ -95,28 +95,28 @@
           <div class="timeline-toolbar">
             <div>
               <p class="eyebrow">LIVE TRANSCRIPT</p>
-              <h2>全量通信时间线</h2>
+              <h2>Full communication timeline</h2>
             </div>
             <label class="search-box">
               <span aria-hidden="true">⌕</span>
-              <span class="sr-only">搜索消息</span>
-              <input id="search-input" type="search" placeholder="搜索成员或内容">
+              <span class="sr-only">Search messages</span>
+              <input id="search-input" type="search" placeholder="Search members or content">
               <kbd>⌘ K</kbd>
             </label>
           </div>
 
-          <div class="filters" role="group" aria-label="筛选消息">
+          <div class="filters" role="group" aria-label="Filter messages">
             <button class="filter-button active" type="button" data-filter="all">
-              全部
+              All
             </button>
             <button class="filter-button" type="button" data-filter="broadcast">
-              广播
+              Broadcast
             </button>
             <button class="filter-button" type="button" data-filter="direct">
-              定向
+              Directed
             </button>
             <button class="filter-button" type="button" data-filter="files">
-              文件与图片
+              Files and images
             </button>
           </div>
 
@@ -124,19 +124,19 @@
             <ol class="timeline" id="timeline" aria-live="polite">
               <li class="loading-state">
                 <span class="loading-orbit" aria-hidden="true"></span>
-                <strong>正在装载聊天室历史</strong>
-                <span>建立本机加密凭据连接…</span>
+                <strong>Loading chat history</strong>
+                <span>Establishing local credential connection…</span>
               </li>
             </ol>
             <button class="new-activity" id="new-activity" type="button" hidden>
-              有新消息 · 回到最新
+              New messages · Jump to latest
             </button>
           </div>
 
           <footer class="timeline-footer">
-            <span id="last-sync">尚未同步</span>
+            <span id="last-sync">Not synced yet</span>
             <span class="footer-separator">·</span>
-            <span>管理员只读视图</span>
+            <span>Admin read-only view</span>
           </footer>
         </section>
       </section>
@@ -148,25 +148,25 @@
           <span></span><span></span><span></span>
         </div>
         <p class="eyebrow">ADMIN ACCESS</p>
-        <h2 id="auth-title">解锁通信监看台</h2>
-        <p>使用聊天室管理员身份打开，凭据只保留在当前浏览器标签页。</p>
+        <h2 id="auth-title">Unlock communication dashboard</h2>
+        <p>Use the chat administrator identity; credentials remain in this browser tab.</p>
 
         <label>
-          <span>房间</span>
+          <span>Room</span>
           <input id="auth-room" name="room" value="codex-team" autocomplete="off">
         </label>
         <label>
-          <span>管理员令牌</span>
+          <span>Administrator token</span>
           <input
             id="auth-token"
             name="token"
             type="password"
             autocomplete="off"
-            placeholder="粘贴管理员令牌"
+            placeholder="Paste administrator token"
             required
           >
         </label>
-        <button type="submit">连接聊天室</button>
+        <button type="submit">Connect chat</button>
         <p class="auth-error" id="auth-error" role="alert"></p>
       </form>
     </section>
@@ -174,8 +174,8 @@
     <template id="empty-template">
       <li class="empty-state">
         <span class="empty-signal" aria-hidden="true"></span>
-        <strong>还没有匹配的通信</strong>
-        <span>新消息抵达后会自动出现在这里。</span>
+        <strong>No matching communication</strong>
+        <span>New messages appear here automatically.</span>
       </li>
     </template>
 
