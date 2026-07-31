@@ -1,87 +1,93 @@
-# Codex Group Chat
+# AI Group Chat
 
-一个面向多个 Codex 对话的本地聊天室后端。成员可以广播或定向发送文本、图片和文件；同一台电脑上的成员还可以通过绝对路径共享大文件。消息和成员状态保存在 SQLite 中。
+A small, persistent local chat backend for coordinating multiple Codex or AI agent conversations. Members can broadcast or direct messages, share text, images, and files, and share absolute file paths when they use the same computer. Messages and membership state are stored in SQLite.
 
-## 功能
+## Features
 
-- 管理员创建房间、查看全量历史、查看成员、停用成员、轮换邀请令牌
-- 协作者通过邀请令牌加入，并使用长轮询接收新消息
-- 广播消息与按 `member_id` 定向消息
-- 图片和文件上传；同机文件支持只分享绝对路径
-- 只监听 `127.0.0.1`，适合通过 SSH、ZeroTier 反向代理或其他受控方式暴露
-- macOS LaunchAgent 开机自动启动
-- 浏览器只读监看台
+- Admin-created rooms with member management and invite-token rotation
+- Broadcast and member-directed messages
+- Long-polling notifications for Codex/agent loops
+- Text, image, and file uploads (the server enforces its configured size limit)
+- Same-host absolute-path sharing without copying large files
+- Read-only browser dashboard
+- SQLite persistence
+- macOS LaunchAgent installation and startup
+- Localhost-first deployment suitable for an SSH or ZeroTier reverse proxy
 
-## 系统要求
+## Requirements
 
-- macOS（安装脚本使用 LaunchAgent）；Linux 可直接运行 `server.py` 并自行配置 systemd
-- Python 3.10+，仅使用标准库
+- macOS for the included LaunchAgent installer
+- Python 3.10+ with the standard library only
+- Linux users can run `server.py` directly and provide their own systemd service
 
-## 部署
+## Install
 
 ```sh
-cd codex-group-chat
+git clone https://github.com/Yidasvc/AI-Group-Chat.git
+cd AI-Group-Chat
 ./install.sh
 cgchat doctor
 ```
 
-服务默认监听 `http://127.0.0.1:8765`。数据目录为 `~/.codex-group-chat/data`，身份文件为 `~/.codex-group-chat/identities.json`，安装脚本会设置受限权限。
+The default service listens on `http://127.0.0.1:8765`. Runtime data is stored under `~/.codex-group-chat/`; identity files and databases are created locally with restricted permissions.
 
-创建房间并初始化管理员：
+Create a room and its administrator identity:
 
 ```sh
-cgchat bootstrap --room codex-team --admin-name 管理员 --as team-admin
+cgchat bootstrap --room codex-team --admin-name Admin --as team-admin
 ```
 
-命令会输出一次性 `invite_token`。不要把管理员 token、协作者 token 或 SQLite 数据目录提交到 Git 或分享给不可信人员。
+The command prints an invite token once. Send that token to collaborators through a secure channel. Never commit identity files, databases, attachments, or tokens to this repository.
 
-打开监看台：
+Open the dashboard:
 
 ```sh
 cgchat dashboard --as team-admin
 ```
 
-卸载服务（默认保留数据）：
+Uninstall the LaunchAgent while preserving data:
 
 ```sh
 ./uninstall.sh
 ```
 
-## 使用命令
+## Command examples
 
 ```sh
-# 加入房间；邀请令牌由管理员 bootstrap 或 rotate-invite 输出
-cgchat join --room codex-team --invite '<邀请令牌>' --name '协作者-1' --as collab-1
+# Join with the invite token produced by bootstrap or rotate-invite
+cgchat join --room codex-team --invite '<INVITE_TOKEN>' \
+  --name 'Collaborator 1' --as collab-1
 
-# 发送与接收
-cgchat send --as collab-1 '已开始执行'
-cgchat send --as collab-1 --to '<管理员 member_id>' '进度汇报'
+# Send and receive
+cgchat send --as collab-1 'I started the task.'
+cgchat send --as collab-1 --to '<ADMIN_MEMBER_ID>' 'Progress update'
 cgchat listen --as collab-1 --wait 50
 
-# 文件、图片和同机路径
-cgchat send --as collab-1 --file /absolute/result.png '结果图'
-cgchat send --as collab-1 --path /absolute/large.zip '同机共享'
-cgchat fetch --as team-admin <file_id> --output ./result.png
+# Files, images, and same-host paths
+cgchat send --as collab-1 --file /absolute/result.png 'Result image'
+cgchat send --as collab-1 --path /absolute/large.zip 'Shared local path'
+cgchat fetch --as team-admin <FILE_ID> --output ./result.png
 
-# 管理员
+# Admin operations
 cgchat who --as team-admin
 cgchat history --as team-admin --limit 100
-cgchat kick --as team-admin <member_id>
+cgchat kick --as team-admin <MEMBER_ID>
 cgchat rotate-invite --as team-admin
 ```
 
-`listen` 会保存每个身份的消息游标；空事件不是完成信号，协作者应继续轮询。管理员结束某个协作者本轮目标时，向该成员定向发送完全一致的 `终止响应`。
+`listen` stores a cursor per local identity and returns only new events. An empty event list is not a completion signal; collaborators should keep polling.
 
-## 远程访问
+## Remote access
 
-后端默认只绑定回环地址。若要让同一 ZeroTier 网络访问，应在可信主机上配置受限代理或 SSH 转发，并自行增加认证层；不要直接把无认证的 `8765` 暴露到公网。
+The server intentionally binds to loopback by default. To use it across a ZeroTier network or through SSH, place a restricted, authenticated proxy in front of it. Do not expose an unauthenticated chat server directly to the public internet.
 
-## 给 Codex 的提示词
+## Codex prompts
 
-见 [PROMPTS.md](PROMPTS.md)。提示词不包含任何真实令牌；管理员创建房间后，把本次 `bootstrap` 输出的邀请令牌填入协作者提示词，或通过安全渠道单独传递。
+See [PROMPTS.md](PROMPTS.md) for copy-ready administrator (guided mode) and collaborator (goal mode) prompts. The prompts contain placeholders rather than real tokens. Bootstrap the room first, then provide the generated invite token securely to collaborators.
 
-## 安全与分享清单
+## Security and maintenance
 
-- 不分享 `~/.codex-group-chat/`、管理员身份文件、SQLite 数据库和附件目录
-- 不把邀请令牌写入仓库；令牌泄露后立即执行 `cgchat rotate-invite --as team-admin`
-- 生产环境建议放在 ZeroTier/SSH 后面，并限制监听地址和防火墙来源
+- Keep `~/.codex-group-chat/` private; it contains identities, SQLite data, and uploaded attachments.
+- Rotate the invite token immediately if it is exposed: `cgchat rotate-invite --as team-admin`.
+- Prefer member IDs over display names for directed messages.
+- Review `cgchat history` and `cgchat who` before granting access to a new collaborator.
